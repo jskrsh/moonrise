@@ -1,0 +1,16 @@
+.gradle/
+build/
+
+# Kotlin
+.kotlin/
+
+# Mac OS
+.DS_Store
+
+# IDE Shit
+.idea/
+.vscode/
+
+# Other
+logs/
+run/

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "labels": ["dependencies"],
+  "timezone": "Europe/Berlin",
+  "schedule": ["before 5am on Monday"],
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch", "minor", "major"],
+      "matchPackageNames": ["*"],
+      "groupName": "dependencies",
+      "groupSlug": "all-dependencies"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions"
+    }
+  ],
+  "prHourlyLimit": 10,
+  "rebaseWhen": "conflicted",
+  "rebaseLabel": "s: rebase",
+  "stopUpdatingLabel": "s: stop updates",
+  "commitMessagePrefix": "chore: ",
+  "commitMessageAction": "bump"
+}
