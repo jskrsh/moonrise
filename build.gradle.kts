@@ -2,62 +2,48 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
+    `java-library`
+    alias(libs.plugins.jmh)
     alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.shadow)
 }
 
-allprojects {
-    group = "net.mythicisland.template"
-    version = "1.0.0"
+group = "net.mythicisland"
+version = "1.0.0"
 
-    repositories {
-        mavenCentral()
-        maven("https://repo.simplecloud.app/snapshots")
-        maven("https://repo.mythicisland.net/public")
-        maven("https://repo.papermc.io/repository/maven-public/")
-        maven("https://buf.build/gen/maven")
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(rootProject.libs.caffeine)
+    implementation(rootProject.libs.slf4j.api)
+    implementation(rootProject.libs.bundles.configurate)
+
+    // Adventure is provided by Paper, Velocity and Minestom, so it must never be shaded.
+    compileOnlyApi(rootProject.libs.bundles.adventure)
+
+    testImplementation(rootProject.libs.kotlin.test)
+    testImplementation(rootProject.libs.bundles.adventure)
+    testImplementation(platform(rootProject.libs.junit.bom))
+    testRuntimeOnly(rootProject.libs.junit.platform.launcher)
+
+    jmhImplementation(rootProject.libs.bundles.adventure)
+}
+
+kotlin {
+    explicitApi()
+    jvmToolchain(25)
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_25
+        languageVersion = KotlinVersion.KOTLIN_2_4
+        apiVersion = KotlinVersion.KOTLIN_2_4
     }
 }
 
-subprojects {
-    apply {
-        plugin("kotlin")
-        plugin("com.gradleup.shadow")
-    }
+java {
+    toolchain.languageVersion.set(JavaLanguageVersion.of(25))
+}
 
-    dependencies {
-        testImplementation(rootProject.libs.kotlin.test)
-        implementation(rootProject.libs.kotlinx.coroutines.core)
-    }
-
-    kotlin {
-        jvmToolchain(25)
-        compilerOptions {
-            jvmTarget = JvmTarget.JVM_25
-            languageVersion = KotlinVersion.KOTLIN_2_4
-            apiVersion = KotlinVersion.KOTLIN_2_4
-        }
-    }
-
-    java {
-        toolchain.languageVersion.set(JavaLanguageVersion.of(25))
-    }
-
-    tasks.test {
-        useJUnitPlatform()
-    }
-
-    tasks.shadowJar {
-        mergeServiceFiles()
-        archiveFileName.set("${project.name}.jar")
-    }
-
-    tasks.processResources {
-        filesMatching("plugin.yml") {
-            expand(
-                "version" to project.version
-            )
-        }
-    }
-
+tasks.test {
+    useJUnitPlatform()
 }
