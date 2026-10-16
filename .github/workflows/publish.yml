@@ -1,0 +1,39 @@
+name: publish
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      - name: setup java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: setup gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: publish snapshot
+        if: github.event.release.prerelease
+        run: ./gradlew publishAllPublicationsToSnapshotsRepository
+        env:
+          MYTHICISLAND_USER: ${{ secrets.MYTHICISLAND_USER }}
+          MYTHICISLAND_PASSWORD: ${{ secrets.MYTHICISLAND_PASSWORD }}
+
+      - name: publish release
+        if: ${{ !github.event.release.prerelease }}
+        run: ./gradlew publishAllPublicationsToReleasesRepository
+        env:
+          MYTHICISLAND_USER: ${{ secrets.MYTHICISLAND_USER }}
+          MYTHICISLAND_PASSWORD: ${{ secrets.MYTHICISLAND_PASSWORD }}
