@@ -3,9 +3,9 @@ package net.mythicisland.moonrise
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
-/** All loaded translations. A new bundle is created on every reload. */
+/** All loaded translations. */
 internal class TranslationBundle(
-    private val messages: Map<Locale, Map<String, Message>>,
+    private val messages: Map<Locale, Map<String, MessageNode>>,
     private val defaultLocale: Locale,
 ) {
 
@@ -15,7 +15,7 @@ internal class TranslationBundle(
 
     val size: Int = messages.values.sumOf { it.size }
 
-    fun find(key: String, locale: Locale): Message? {
+    fun find(key: String, locale: Locale): MessageNode? {
         for (candidate in fallbacks.computeIfAbsent(locale) { TranslationUtilities.fallbacks(it, defaultLocale) }) {
             val message = messages[candidate]?.get(key)
             if (message != null) {

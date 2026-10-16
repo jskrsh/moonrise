@@ -2,6 +2,7 @@ package net.mythicisland.moonrise
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
+import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
@@ -34,6 +35,7 @@ class TranslationsTest {
             only-english: "English only"
             colored: "<red><player></red>"
             hover: "<hover:show_text:'Hello <player>'>Hover me</hover>"
+            click: "<click:run_command:'/tp <player> <arg:1>'>Teleport</click>"
             item: "Diamond"
             gift: "<player> got <item>"
             messages:
@@ -132,6 +134,13 @@ class TranslationsTest {
     }
 
     @Test
+    fun `arguments inside click events are inserted`() = bothModes { translations ->
+        val result = translations.translate("click", Locale.ENGLISH, Argument.string("player", "Steve"), Component.text("Alex"))
+        val payload = assertNotNull(findClick(result)).payload()
+        assertEquals(ClickEvent.Payload.string("/tp Steve Alex"), payload)
+    }
+
+    @Test
     fun `nested translatable arguments are translated`() = bothModes { translations ->
         val result = translations.translate(
             "gift",
@@ -152,11 +161,11 @@ class TranslationsTest {
     fun `cached and uncached results are equal`() {
         val cached = translations(caching = true)
         val uncached = translations(caching = false)
-        listOf("welcome", "positional", "colored", "hover", "lore").forEach { key ->
+        listOf("welcome", "positional", "colored", "hover", "click", "lore").forEach { key ->
             val arguments = arrayOf(Argument.string("player", "Steve"), Component.text("B"))
             assertEquals(
-                plain.serialize(uncached.translate(key, Locale.ENGLISH, *arguments)),
-                plain.serialize(cached.translate(key, Locale.ENGLISH, *arguments)),
+                uncached.translate(key, Locale.ENGLISH, *arguments),
+                cached.translate(key, Locale.ENGLISH, *arguments),
             )
         }
         cached.shutdown()
@@ -195,4 +204,7 @@ class TranslationsTest {
         }
         return component.children().firstNotNullOfOrNull { findHover(it) }
     }
+
+    private fun findClick(component: Component): ClickEvent<*>? =
+        component.clickEvent() ?: component.children().firstNotNullOfOrNull { findClick(it) }
 }

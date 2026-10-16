@@ -1,7 +1,7 @@
 package net.mythicisland.moonrise
 
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.event.HoverEvent
+import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.minimessage.Context
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.minimessage.tag.Tag
@@ -12,35 +12,38 @@ internal class TranslationParser(private val miniMessage: MiniMessage, private v
 
     private val markerResolver = TagResolver.resolver(MarkerTagResolver(TagResolver.resolver(miniMessage.tags(), tagResolver)), tagResolver)
 
-    fun parseWithMarkers(raw: String): Component = miniMessage.deserialize(raw, markerResolver)
+    fun compile(raw: String): MessageNode = compile(miniMessage.deserialize(raw, markerResolver))
 
-    // Used when caching is disabled.
-    fun parse(raw: String, arguments: TranslationArguments): Component =
-        miniMessage.deserialize(raw, TagResolver.resolver(ArgumentTagResolver(arguments), tagResolver))
-
-    fun render(component: Component, arguments: TranslationArguments): Component {
+    private fun compile(component: Component): MessageNode {
         val name = TranslationUtilities.markerName(component)
         if (name != null) {
-            return placeholder(component, name, arguments)
+            return MessageNode.Placeholder(name, component.style())
         }
-        val children = component.children()
-        val rendered = if (children.isEmpty()) component else component.children(children.map { render(it, arguments) })
-        return renderHover(rendered, arguments)
+        val children = component.children().map { compile(it) }
+        val hover = compileHover(component)
+        val click = dynamicClick(component)
+        if (hover == null && click == null && children.all { it is MessageNode.Static }) {
+            return MessageNode.Static(component)
+        }
+        return MessageNode.Dynamic(component.children(emptyList()), children, hover, click)
     }
 
-    private fun placeholder(marker: Component, name: String, arguments: TranslationArguments): Component {
-        val value = arguments.find(name) ?: Component.text("<$name>")
-        val styled = if (marker.style().isEmpty) value else value.applyFallbackStyle(marker.style())
-        val children = marker.children()
-        return if (children.isEmpty()) styled else styled.children(styled.children() + children)
-    }
-
-    private fun renderHover(component: Component, arguments: TranslationArguments): Component {
+    private fun compileHover(component: Component): MessageNode? {
         val text = component.hoverEvent()?.value()
-        if (text !is Component || !TranslationUtilities.containsPlaceholder(text)) {
-            return component
+        if (text !is Component) {
+            return null
         }
-        return component.hoverEvent(HoverEvent.showText(render(text, arguments)))
+        val node = compile(text)
+        return if (node is MessageNode.Static) null else node
+    }
+
+    private fun dynamicClick(component: Component): ClickEvent<*>? {
+        val click = component.clickEvent() ?: return null
+        val payload = click.payload()
+        if (payload !is ClickEvent.Payload.Text || !TranslationUtilities.containsPlaceholder(payload.value())) {
+            return null
+        }
+        return click
     }
 }
 
@@ -52,15 +55,4 @@ private class MarkerTagResolver(private val reserved: TagResolver) : TagResolver
     }
 
     override fun has(name: String): Boolean = !reserved.has(name)
-}
-
-private class ArgumentTagResolver(private val arguments: TranslationArguments) : TagResolver {
-
-    override fun resolve(name: String, arguments: ArgumentQueue, context: Context): Tag? {
-        val placeholder = TranslationUtilities.placeholderName(name, arguments) ?: return null
-        val value = this.arguments.find(placeholder) ?: return null
-        return Tag.selfClosingInserting(value)
-    }
-
-    override fun has(name: String): Boolean = name == "arg" || name == "argument" || arguments.find(name) != null
 }

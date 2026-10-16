@@ -46,15 +46,15 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
     }
 
     fun translate(key: String, locale: Locale, arguments: List<Component>): Component? {
-        val message = bundle.get().find(key, locale) ?: return null
-        if (!options.isCachingEnabled) {
-            return parser.parse(message.raw, resolve(arguments, locale))
-        }
-        if (!message.dynamic) {
-            return message.component
+        val node = bundle.get().find(key, locale) ?: return null
+        if (node is MessageNode.Static) {
+            return node.render(TranslationArguments.EMPTY)
         }
         val resolved = resolve(arguments, locale)
-        return cache.get(RenderKey(message, resolved)) { parser.render(message.component, resolved) }
+        if (!options.isCachingEnabled) {
+            return node.render(resolved)
+        }
+        return cache.get(RenderKey(node, resolved)) { node.render(resolved) }
     }
 
     fun render(component: Component, locale: Locale): Component = renderer.render(component, locale)
@@ -68,7 +68,7 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
             .map { it.load() }
             .fold(emptyMap<Locale, Map<String, String>>()) { merged, translations -> merge(merged, translations) }
         val messages = loaded.mapValues { (_, translations) ->
-            translations.mapValues { (_, raw) -> message(raw) }
+            translations.mapValues { (_, raw) -> node(raw) }
         }
         val created = TranslationBundle(messages, options.defaultLocale)
         bundle.set(created)
@@ -81,8 +81,8 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
         cache.invalidateAll()
     }
 
-    private fun message(raw: String): Message =
-        if (options.isCachingEnabled) Message.parsed(raw, parser) else Message.unparsed(raw)
+    private fun node(raw: String): MessageNode =
+        if (options.isCachingEnabled) parser.compile(raw) else MessageNode.Unparsed(raw, parser)
 
     private fun resolve(arguments: List<Component>, locale: Locale): TranslationArguments =
         TranslationArguments.of(arguments) { argument ->
@@ -95,5 +95,6 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
     ): Map<Locale, Map<String, String>> =
         (first.keys + second.keys).associateWith { first[it].orEmpty() + second[it].orEmpty() }
 
-    private data class RenderKey(val message: Message, val arguments: TranslationArguments)
+    // Nodes are compared by identity.
+    private data class RenderKey(val node: MessageNode, val arguments: TranslationArguments)
 }
