@@ -2,7 +2,6 @@ package net.mythicisland.moonrise
 
 import net.kyori.adventure.text.Component
 
-/** The arguments of a single translation, also used as cache key. */
 internal data class TranslationArguments(
     val named: Map<String, Component>,
     val positional: List<Component>,

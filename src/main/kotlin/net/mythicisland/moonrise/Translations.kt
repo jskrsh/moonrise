@@ -13,9 +13,6 @@ import org.slf4j.LoggerFactory
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * Holds all translations. Create it with [builder], then call [initialize] and later [shutdown].
- */
 public class Translations private constructor(public val options: TranslationLoaderOptions) : AutoCloseable {
 
     private val logger = LoggerFactory.getLogger(Translations::class.java)
@@ -91,16 +88,15 @@ public class Translations private constructor(public val options: TranslationLoa
 
     private fun checkInitialized() = check(initialized.get()) { "Translations are not initialized, call initialize() first" }
 
-    /** Every method returns a new builder, so the calls have to be chained. */
     public class Builder internal constructor(private val options: TranslationLoaderOptions) {
 
-        /** Adds a loader. Later loaders override keys of earlier ones. */
+        /** Adds a [TranslationLoader]. */
         public fun loader(loader: TranslationLoader): Builder = Builder(options.copy(loaders = options.loaders + loader))
 
         /** Sets the locale that is used when no translation for the requested locale exists. */
         public fun defaultLocale(locale: Locale): Builder = Builder(options.copy(defaultLocale = locale))
 
-        /** Parses every message on every call. */
+        /** Disables component caching. */
         public fun disableCaching(): Builder = Builder(options.copy(caching = false))
 
         /** Sets the maximum amount of cached messages with arguments. */
@@ -109,7 +105,7 @@ public class Translations private constructor(public val options: TranslationLoa
             return Builder(options.copy(cacheMaximumSize = size))
         }
 
-        /** Sets the MiniMessage instance used to parse the messages. */
+        /** Sets the MiniMessage instance used to parse messages. */
         public fun miniMessage(miniMessage: MiniMessage): Builder = Builder(options.copy(miniMessage = miniMessage))
 
         /** Adds tags that can be used in every message, e.g. `<prefix>`. */

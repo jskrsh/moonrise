@@ -3,7 +3,6 @@ package net.mythicisland.moonrise
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
-/** All loaded translations. */
 internal class TranslationBundle(
     private val messages: Map<Locale, Map<String, MessageNode>>,
     private val defaultLocale: Locale,
