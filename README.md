@@ -4,13 +4,11 @@ A small and fast translation library based on Adventure MiniMessage.
 
 ## Features
 
-- MiniMessage formatting in every message, including hover and click events
 - Named (`<player>`) and positional (`<arg:0>`) placeholders
 - Loaders for `.properties`, `.yml`/`.yaml` and `.json` files
 - Works with the Adventure `GlobalTranslator`, so `Component.translatable(...)` just works
 - Messages are parsed once and rendered results are cached
 - Reloading at runtime
-- Kotlin, but made to be used from Java as well
 
 ## Usage
 
