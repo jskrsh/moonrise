@@ -15,13 +15,20 @@ internal class TranslationBundle(
     val size: Int = messages.values.sumOf { it.size }
 
     fun find(key: String, locale: Locale): MessageNode? {
-        for (candidate in fallbacks.computeIfAbsent(locale) { TranslationUtilities.fallbacks(it, defaultLocale) }) {
+        for (candidate in fallbacks.computeIfAbsent(locale) { fallbacks(it) }) {
             val message = messages[candidate]?.get(key)
             if (message != null) {
                 return message
             }
         }
         return null
+    }
+
+    private fun fallbacks(locale: Locale): List<Locale> {
+        val related = listOf(locale.language, defaultLocale.language).flatMap { language ->
+            locales.filter { it.language == language }.sortedBy { it.toLanguageTag() }
+        }
+        return (TranslationUtilities.fallbacks(locale, defaultLocale) + related).distinct()
     }
 
     companion object {
