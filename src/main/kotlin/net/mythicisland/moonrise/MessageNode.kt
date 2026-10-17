@@ -5,9 +5,6 @@ import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.event.HoverEvent
 import net.kyori.adventure.text.format.Style
 
-/**
- * A pre-parsed message.
- */
 internal sealed interface MessageNode {
 
     fun render(arguments: TranslationArguments): Component

@@ -5,7 +5,6 @@ import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
 import java.util.Locale
 
-/** Settings of a [Translations] instance, created by [Translations.Builder]. */
 public class TranslationLoaderOptions internal constructor(
     public val loaders: List<TranslationLoader>,
     public val defaultLocale: Locale,

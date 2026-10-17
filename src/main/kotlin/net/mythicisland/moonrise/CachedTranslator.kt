@@ -12,9 +12,6 @@ import java.text.MessageFormat
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicReference
 
-/**
- * Translator that parses every message once on load.
- */
 internal class CachedTranslator(private val options: TranslationLoaderOptions) : Translator {
 
     private val parser = TranslationParser(options.miniMessage, options.tagResolver)
@@ -95,6 +92,5 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
     ): Map<Locale, Map<String, String>> =
         (first.keys + second.keys).associateWith { first[it].orEmpty() + second[it].orEmpty() }
 
-    // Nodes are compared by identity.
     private data class RenderKey(val node: MessageNode, val arguments: TranslationArguments)
 }
