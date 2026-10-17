@@ -35,7 +35,13 @@ public abstract class FileTranslationLoader(
             logger.warn("Skipping translation file {}, '{}' is not a valid locale", file, name)
             return null
         }
-        return locale to readMessages(file)
+        val messages = try {
+            readMessages(file)
+        } catch (exception: Exception) {
+            logger.error("Skipping translation file {}, it could not be read", file, exception)
+            return null
+        }
+        return locale to messages
     }
 
     private fun localeName(file: Path): String {
