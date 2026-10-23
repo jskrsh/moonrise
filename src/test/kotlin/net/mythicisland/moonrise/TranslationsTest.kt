@@ -12,6 +12,7 @@ import net.mythicisland.moonrise.loader.GsonTranslationLoader
 import net.mythicisland.moonrise.loader.YamlTranslationLoader
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDate
 import java.util.Locale
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
@@ -46,6 +47,10 @@ class TranslationsTest {
             lang: "<lang:item> is shiny"
             loop: "Loop <lang:loop>"
             gradient: "<gradient:red:blue><player></gradient>"
+            coins: "<coins> Coins"
+            price: "<price:'#,##0.00'>"
+            amount: "<amount:choice:'0#no coins|1#one coin|1<{0} coins'>"
+            day: "<day:'dd.MM.yyyy'>"
             messages:
               nested:
                 key: "Nested"
@@ -235,6 +240,32 @@ class TranslationsTest {
         assertTrue("only-english" in missing)
         assertFalse("welcome" in missing)
         assertEquals(emptySet(), translations.missingKeys(Locale.US))
+    }
+
+    @Test
+    fun `numbers are formatted for the locale`() = bothModes { translations ->
+        val coins = Argument.number("coins", 1337)
+        assertEquals("1,337 Coins", plain.serialize(translations.translate("coins", Locale.ENGLISH, coins)))
+        assertEquals("1.337 Coins", plain.serialize(translations.translate("coins", Locale.GERMAN, coins)))
+        val price = Argument.number("price", 1234.5)
+        assertEquals("1,234.50", plain.serialize(translations.translate("price", Locale.ENGLISH, price)))
+        assertEquals("1.234,50", plain.serialize(translations.translate("price", Locale.GERMAN, price)))
+    }
+
+    @Test
+    fun `choices are formatted`() = bothModes { translations ->
+        val text = { amount: Int, locale: Locale ->
+            plain.serialize(translations.translate("amount", locale, Argument.number("amount", amount)))
+        }
+        assertEquals("no coins", text(0, Locale.ENGLISH))
+        assertEquals("one coin", text(1, Locale.ENGLISH))
+        assertEquals("1.337 coins", text(1337, Locale.GERMAN))
+    }
+
+    @Test
+    fun `dates are formatted`() = bothModes { translations ->
+        val result = translations.translate("day", Locale.GERMAN, Argument.date("day", LocalDate.of(2026, 10, 23)))
+        assertEquals("23.10.2026", plain.serialize(result))
     }
 
     @Test

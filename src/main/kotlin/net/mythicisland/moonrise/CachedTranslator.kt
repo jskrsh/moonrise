@@ -114,7 +114,7 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
         if (options.isGlobalTranslatorEnabled) GlobalTranslator.render(component, locale) else render(component, locale)
 
     private fun resolve(arguments: List<Component>, locale: Locale): TranslationArguments =
-        TranslationArguments.of(arguments) { argument ->
+        TranslationArguments.of(arguments, locale) { argument ->
             if (TranslationUtilities.containsTranslatable(argument)) renderAll(argument, locale) else argument
         }
 

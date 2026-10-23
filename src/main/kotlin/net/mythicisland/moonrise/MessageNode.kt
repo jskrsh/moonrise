@@ -15,12 +15,12 @@ internal sealed interface MessageNode {
     }
 
     /** A placeholder like `<player>` or `<arg:0>`. */
-    class Placeholder(private val name: String, private val style: Style) : MessageNode {
+    class Placeholder(private val name: String, private val format: ArgumentFormat, private val style: Style) : MessageNode {
 
         private val missing = TranslationUtilities.missingPlaceholder(name)
 
         override fun render(arguments: TranslationArguments): Component {
-            val value = arguments.find(name) ?: missing
+            val value = arguments.find(name, format) ?: missing
             return if (style.isEmpty) value else value.applyFallbackStyle(style)
         }
     }

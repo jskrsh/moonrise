@@ -30,7 +30,8 @@ internal class TranslationParser(private val miniMessage: MiniMessage, private v
     private fun compile(component: Component): MessageNode {
         val name = TranslationUtilities.markerName(component)
         if (name != null) {
-            return MessageNode.Placeholder(name, component.style())
+            val format = ArgumentFormat.of(TranslationUtilities.markerFormat(component)) ?: ArgumentFormat.Default
+            return MessageNode.Placeholder(name, format, component.style())
         }
         val children = component.children().map { compile(it) }
         val hover = compileHover(component)
@@ -84,8 +85,8 @@ private class MarkerTagResolver(private val reserved: TagResolver) : TagResolver
         if (reserved.has(name)) {
             return null
         }
-        val placeholder = TranslationUtilities.placeholderName(name, arguments) ?: return null
-        return Tag.selfClosingInserting(TranslationUtilities.marker(placeholder))
+        val (placeholder, format) = TranslationUtilities.placeholder(name, arguments) ?: return null
+        return Tag.selfClosingInserting(TranslationUtilities.marker(placeholder, format))
     }
 
     override fun has(name: String): Boolean = !reserved.has(name)
@@ -97,8 +98,9 @@ private class ArgumentTagResolver(private val reserved: TagResolver, private val
         if (reserved.has(name)) {
             return null
         }
-        val placeholder = TranslationUtilities.placeholderName(name, arguments) ?: return null
-        return Tag.selfClosingInserting(values.find(placeholder) ?: TranslationUtilities.missingPlaceholder(placeholder))
+        val (placeholder, format) = TranslationUtilities.placeholder(name, arguments) ?: return null
+        val value = values.find(placeholder, ArgumentFormat.of(format) ?: ArgumentFormat.Default)
+        return Tag.selfClosingInserting(value ?: TranslationUtilities.missingPlaceholder(placeholder))
     }
 
     override fun has(name: String): Boolean = !reserved.has(name)

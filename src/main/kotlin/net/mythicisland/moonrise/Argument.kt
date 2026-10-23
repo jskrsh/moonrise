@@ -4,6 +4,7 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.ComponentLike
 import net.kyori.adventure.text.VirtualComponentRenderer
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+import java.time.temporal.TemporalAccessor
 
 /**
  * A named argument that can be used as `<name>` in a message.
@@ -15,6 +16,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 public class Argument private constructor(
     public val name: String,
     public val value: Component,
+    internal val raw: Any?,
 ) : VirtualComponentRenderer<Void> {
 
     override fun apply(context: Void): ComponentLike = value
@@ -23,16 +25,23 @@ public class Argument private constructor(
 
     public companion object {
         @JvmStatic
-        public fun component(name: String, value: ComponentLike): Component =
-            Component.virtual(Void::class.java, Argument(TranslationUtilities.argumentName(name), value.asComponent()))
+        public fun component(name: String, value: ComponentLike): Component = create(name, value.asComponent(), null)
 
         @JvmStatic
         public fun string(name: String, value: String): Component = component(name, Component.text(value))
 
+        /** Formatted for the locale, e.g. `<coins>`, `<coins:'#,##0.00'>` or `<coins:choice:'0#no coins|1#one coin|1<{0} coins'>`. */
         @JvmStatic
-        public fun number(name: String, value: Number): Component = component(name, Component.text(value.toString()))
+        public fun number(name: String, value: Number): Component = create(name, Component.text(value.toString()), value)
 
         @JvmStatic
         public fun bool(name: String, value: Boolean): Component = component(name, Component.text(value))
+
+        /** Formatted for the locale, e.g. `<date>` or `<date:'dd.MM.yyyy'>`. */
+        @JvmStatic
+        public fun date(name: String, value: TemporalAccessor): Component = create(name, Component.text(value.toString()), value)
+
+        private fun create(name: String, value: Component, raw: Any?): Component =
+            Component.virtual(Void::class.java, Argument(TranslationUtilities.argumentName(name), value, raw))
     }
 }

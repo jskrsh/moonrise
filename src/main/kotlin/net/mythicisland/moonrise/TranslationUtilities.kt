@@ -46,19 +46,29 @@ public object TranslationUtilities {
     internal fun missingPlaceholder(name: String): Component =
         Component.text(if (name.toIntOrNull() == null) "<$name>" else "<arg:$name>")
 
-    internal fun placeholderName(tag: String, arguments: ArgumentQueue): String? {
+    internal fun placeholder(tag: String, arguments: ArgumentQueue): Pair<String, List<String>>? {
         val name = tag.lowercase(Locale.ROOT)
+        val values = generateSequence { if (arguments.hasNext()) arguments.pop().value() else null }.toList()
         if (name !in POSITIONAL_TAGS) {
-            return if (arguments.hasNext()) null else name
+            return if (ArgumentFormat.isFormat(values)) name to values else null
         }
-        if (!arguments.hasNext()) {
+        val index = values.firstOrNull()
+        val format = values.drop(1)
+        if (index == null || index.toIntOrNull() == null || !ArgumentFormat.isFormat(format)) {
             return null
         }
-        val index = arguments.pop().value()
-        return if (arguments.hasNext() || index.toIntOrNull() == null) null else index
+        return index to format
     }
 
-    internal fun marker(name: String): Component = Component.translatable(MARKER_PREFIX + name)
+    internal fun marker(name: String, format: List<String>): Component =
+        Component.translatable(MARKER_PREFIX + name, format.map { Component.text(it) })
+
+    internal fun markerFormat(component: Component): List<String> {
+        if (component !is TranslatableComponent) {
+            return emptyList()
+        }
+        return component.arguments().map { PlainTextComponentSerializer.plainText().serialize(it.asComponent()) }
+    }
 
     internal fun markerName(component: Component): String? {
         if (component !is TranslatableComponent) {
@@ -94,10 +104,5 @@ public object TranslationUtilities {
         }
         val renderer = component.renderer()
         return renderer as? Argument
-    }
-
-    internal fun unwrap(component: Component): Component {
-        val argument = namedArgument(component)
-        return argument?.value ?: component
     }
 }
