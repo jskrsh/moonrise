@@ -58,6 +58,8 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
 
     fun locales(): Set<Locale> = bundle.get().locales
 
+    fun missingKeys(locale: Locale): Set<String> = bundle.get().missingKeys(locale)
+
     fun load(): TranslationBundle {
         val loaded = options.loaders
             .map { it.load() }

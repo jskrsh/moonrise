@@ -90,6 +90,12 @@ public class Translations private constructor(public val options: TranslationLoa
         return translator.locales()
     }
 
+    /** Keys of the default locale that are not translated in the language of [locale]. */
+    public fun missingKeys(locale: Locale): Set<String> {
+        checkInitialized()
+        return translator.missingKeys(locale)
+    }
+
     private fun localeOf(audience: Audience): Locale =
         audience.getOrDefault(Identity.LOCALE, options.defaultLocale) ?: options.defaultLocale
 

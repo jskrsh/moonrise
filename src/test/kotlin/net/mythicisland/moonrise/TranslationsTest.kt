@@ -5,12 +5,16 @@ import net.kyori.adventure.text.TextComponent
 import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextColor
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+import net.kyori.adventure.translation.GlobalTranslator
 import net.mythicisland.moonrise.loader.GsonTranslationLoader
 import net.mythicisland.moonrise.loader.YamlTranslationLoader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Locale
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.writeText
@@ -38,6 +42,10 @@ class TranslationsTest {
             click: "<click:run_command:'/tp <player> <arg:1>'>Teleport</click>"
             item: "Diamond"
             gift: "<player> got <item>"
+            prefixed: "<prefix> Hi <player>"
+            lang: "<lang:item> is shiny"
+            loop: "Loop <lang:loop>"
+            gradient: "<gradient:red:blue><player></gradient>"
             messages:
               nested:
                 key: "Nested"
@@ -62,6 +70,7 @@ class TranslationsTest {
             .loader(YamlTranslationLoader(directory))
             .loader(GsonTranslationLoader(directory))
             .defaultLocale(Locale.ENGLISH)
+            .tagResolver(Placeholder.parsed("prefix", "<gray>[Test]</gray>"))
             .disableGlobalTranslator()
         val translations = if (caching) builder.build() else builder.disableCaching().build()
         translations.initialize()
@@ -176,6 +185,7 @@ class TranslationsTest {
     fun `lifecycle is checked`() {
         val translations = Translations.builder().loader(YamlTranslationLoader(directory)).disableGlobalTranslator().build()
         assertFailsWith<IllegalStateException> { translations.translate("welcome", Locale.ENGLISH) }
+        assertFailsWith<IllegalStateException> { translations.contains("welcome", Locale.ENGLISH) }
         translations.initialize()
         assertTrue(translations.isInitialized)
         assertFailsWith<IllegalStateException> { translations.initialize() }
@@ -188,6 +198,84 @@ class TranslationsTest {
     fun `invalid argument names are rejected`() {
         assertFailsWith<IllegalArgumentException> { Argument.string("no spaces", "value") }
         assertFailsWith<IllegalArgumentException> { Argument.string("bold", "value") }
+    }
+
+    @Test
+    fun `custom tags are resolved`() = bothModes { translations ->
+        val result = translations.translate("prefixed", Locale.ENGLISH, Argument.string("player", "Steve"))
+        assertEquals("[Test] Hi Steve", plain.serialize(result))
+    }
+
+    @Test
+    fun `lang tags are translated`() = bothModes { translations ->
+        assertEquals("Diamond is shiny", plain.serialize(translations.translate("lang", Locale.ENGLISH)))
+    }
+
+    @Test
+    fun `recursive lang tags do not overflow`() = bothModes { translations ->
+        translations.translate("loop", Locale.ENGLISH)
+    }
+
+    @Test
+    fun `children of translatable components are translated`() = bothModes { translations ->
+        val component = Component.translatable("welcome", Argument.string("player", "Steve")).append(Component.translatable("item"))
+        assertEquals("Welcome Steve!Diamond", plain.serialize(translations.render(component, Locale.ENGLISH)))
+    }
+
+    @Test
+    fun `gradients are applied to arguments`() = bothModes { translations ->
+        val result = translations.translate("gradient", Locale.ENGLISH, Argument.string("player", "Steve"))
+        assertEquals("Steve", plain.serialize(result))
+        assertTrue(colors(result).size > 1)
+    }
+
+    @Test
+    fun `missing keys are reported`() = bothModes { translations ->
+        val missing = translations.missingKeys(Locale.GERMAN)
+        assertTrue("only-english" in missing)
+        assertFalse("welcome" in missing)
+        assertEquals(emptySet(), translations.missingKeys(Locale.US))
+    }
+
+    @Test
+    fun `reload loads changed files`() = bothModes { translations ->
+        directory.resolve("de.yml").writeText("welcome: \"Hallo <player>!\"")
+        translations.reload()
+        assertEquals("Hallo Steve!", plain.serialize(translations.translate("welcome", Locale.GERMAN, Argument.string("player", "Steve"))))
+    }
+
+    @Test
+    fun `translations are registered at the global translator`() {
+        Translations.builder().loader(YamlTranslationLoader(directory)).build().use { translations ->
+            translations.initialize()
+            val component = Component.translatable("welcome", Argument.string("player", "Steve"))
+            assertEquals("Willkommen Steve!", plain.serialize(GlobalTranslator.render(component, Locale.GERMAN)))
+        }
+    }
+
+    @Test
+    fun `translating while reloading works`() {
+        translations(caching = true).use { translations ->
+            Executors.newFixedThreadPool(4).use { executor ->
+                val futures = (0 until 4).map { thread ->
+                    executor.submit(
+                        Callable {
+                            repeat(1_000) { index ->
+                                translations.translate("welcome", Locale.GERMAN, Argument.string("player", "Player$thread-$index"))
+                            }
+                        },
+                    )
+                }
+                repeat(10) { translations.reload() }
+                futures.forEach { it.get() }
+            }
+        }
+    }
+
+    private fun colors(component: Component): Set<TextColor> {
+        val color = component.color()
+        val own = if (component is TextComponent && component.content().isNotEmpty() && color != null) setOf(color) else emptySet()
+        return own + component.children().flatMap { colors(it) }
     }
 
     private fun colorOf(component: Component, content: String, inherited: TextColor?): TextColor? {

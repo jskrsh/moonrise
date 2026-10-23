@@ -27,6 +27,11 @@ internal class TranslationBundle(
         return null
     }
 
+    fun missingKeys(locale: Locale): Set<String> =
+        keys(sameLanguage(defaultLocale)) - keys(sameLanguage(locale))
+
+    private fun keys(locales: List<Locale>): Set<String> = locales.flatMap { messages[it].orEmpty().keys }.toSet()
+
     private fun fallbacks(locale: Locale): List<Locale> {
         val requested = listOf(locale, Locale.of(locale.language, locale.country), Locale.of(locale.language))
         val default = listOf(defaultLocale, Locale.of(defaultLocale.language))
