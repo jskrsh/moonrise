@@ -25,18 +25,20 @@ internal sealed interface MessageNode {
         }
     }
 
-    /** A part that contains placeholders in its children, its hover text or its click event. */
+    /** A part that contains placeholders in its children, its hover text, its click event or its insertion. */
     class Dynamic(
         private val component: Component,
         private val children: List<MessageNode>,
         private val hover: MessageNode?,
         private val click: ClickEvent<*>?,
+        private val insertion: String?,
     ) : MessageNode {
 
         override fun render(arguments: TranslationArguments): Component {
             val rendered = component.children(children.map { it.render(arguments) })
             val withHover = if (hover == null) rendered else rendered.hoverEvent(HoverEvent.showText(hover.render(arguments)))
-            return if (click == null) withHover else withHover.clickEvent(TranslationUtilities.replacePlaceholders(click, arguments))
+            val withClick = if (click == null) withHover else withHover.clickEvent(TranslationUtilities.replacePlaceholders(click, arguments))
+            return if (insertion == null) withClick else withClick.insertion(TranslationUtilities.replacePlaceholders(insertion, arguments))
         }
     }
 

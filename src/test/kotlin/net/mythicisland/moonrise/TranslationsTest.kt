@@ -47,6 +47,7 @@ class TranslationsTest {
             lang: "<lang:item> is shiny"
             loop: "Loop <lang:loop>"
             gradient: "<gradient:red:blue><player></gradient>"
+            insert: "<insert:'/msg <player> '>Message</insert>"
             coins: "<coins> Coins"
             price: "<price:'#,##0.00'>"
             amount: "<amount:choice:'0#no coins|1#one coin|1<{0} coins'>"
@@ -152,6 +153,12 @@ class TranslationsTest {
         val result = translations.translate("click", Locale.ENGLISH, Argument.string("player", "Steve"), Component.text("Alex"))
         val payload = assertNotNull(findClick(result)).payload()
         assertEquals(ClickEvent.Payload.string("/tp Steve Alex"), payload)
+    }
+
+    @Test
+    fun `arguments inside insertions are inserted`() = bothModes { translations ->
+        val result = translations.translate("insert", Locale.ENGLISH, Argument.string("player", "Steve"))
+        assertEquals("/msg Steve ", findInsertion(result))
     }
 
     @Test
@@ -324,6 +331,9 @@ class TranslationsTest {
         }
         return component.children().firstNotNullOfOrNull { findHover(it) }
     }
+
+    private fun findInsertion(component: Component): String? =
+        component.insertion() ?: component.children().firstNotNullOfOrNull { findInsertion(it) }
 
     private fun findClick(component: Component): ClickEvent<*>? =
         component.clickEvent() ?: component.children().firstNotNullOfOrNull { findClick(it) }

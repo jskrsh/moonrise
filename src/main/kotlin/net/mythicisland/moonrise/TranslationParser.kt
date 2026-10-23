@@ -24,7 +24,7 @@ internal class TranslationParser(private val miniMessage: MiniMessage, private v
 
     fun parse(raw: String, arguments: TranslationArguments): Component {
         val component = miniMessage.deserialize(raw, TagResolver.resolver(tagResolver, ArgumentTagResolver(reserved, arguments)))
-        return replaceClicks(component, arguments)
+        return replaceEvents(component, arguments)
     }
 
     private fun compile(component: Component): MessageNode {
@@ -36,10 +36,11 @@ internal class TranslationParser(private val miniMessage: MiniMessage, private v
         val children = component.children().map { compile(it) }
         val hover = compileHover(component)
         val click = dynamicClick(component)
-        if (hover == null && click == null && children.all { it is MessageNode.Static }) {
+        val insertion = dynamicInsertion(component)
+        if (hover == null && click == null && insertion == null && children.all { it is MessageNode.Static }) {
             return MessageNode.Static(component)
         }
-        return MessageNode.Dynamic(component.children(emptyList()), children, hover, click)
+        return MessageNode.Dynamic(component.children(emptyList()), children, hover, click, insertion)
     }
 
     private fun compileHover(component: Component): MessageNode? {
@@ -60,10 +61,17 @@ internal class TranslationParser(private val miniMessage: MiniMessage, private v
         return click
     }
 
-    private fun replaceClicks(component: Component, arguments: TranslationArguments): Component {
+    private fun dynamicInsertion(component: Component): String? {
+        val insertion = component.insertion() ?: return null
+        return if (TranslationUtilities.containsPlaceholder(insertion)) insertion else null
+    }
+
+    private fun replaceEvents(component: Component, arguments: TranslationArguments): Component {
         val click = dynamicClick(component)
-        val replaced = if (click == null) component else component.clickEvent(TranslationUtilities.replacePlaceholders(click, arguments))
-        return replaced.children(component.children().map { replaceClicks(it, arguments) })
+        val insertion = dynamicInsertion(component)
+        val withClick = if (click == null) component else component.clickEvent(TranslationUtilities.replacePlaceholders(click, arguments))
+        val withInsertion = if (insertion == null) withClick else withClick.insertion(TranslationUtilities.replacePlaceholders(insertion, arguments))
+        return withInsertion.children(component.children().map { replaceEvents(it, arguments) })
     }
 
     private fun containsTranslation(component: Component): Boolean {
