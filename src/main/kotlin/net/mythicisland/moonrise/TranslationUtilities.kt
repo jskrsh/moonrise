@@ -3,7 +3,9 @@ package net.mythicisland.moonrise
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TranslatableComponent
 import net.kyori.adventure.text.VirtualComponent
+import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.minimessage.tag.resolver.ArgumentQueue
+import net.kyori.adventure.text.minimessage.tag.standard.StandardTags
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import java.util.Locale
 
@@ -14,6 +16,7 @@ public object TranslationUtilities {
     private val ARGUMENT_NAME_PATTERN = Regex("^[a-z0-9_-]+$")
     private val POSITIONAL_TAGS = setOf("arg", "argument")
     private val PLACEHOLDER_PATTERN = Regex("<(?:arg(?:ument)?:)?([a-zA-Z0-9_-]+)>")
+    private val STANDARD_TAGS = StandardTags.defaults()
 
     public fun parseLocale(value: String): Locale? {
         if (!LOCALE_PATTERN.matches(value)) {
@@ -34,8 +37,14 @@ public object TranslationUtilities {
     internal fun argumentName(name: String): String {
         val normalized = name.lowercase(Locale.ROOT)
         require(ARGUMENT_NAME_PATTERN.matches(normalized)) { "Invalid argument name '$name', only [a-z0-9_-] is allowed" }
+        require(normalized !in POSITIONAL_TAGS && !STANDARD_TAGS.has(normalized)) {
+            "Invalid argument name '$name', it is already used by a MiniMessage tag"
+        }
         return normalized
     }
+
+    internal fun missingPlaceholder(name: String): Component =
+        Component.text(if (name.toIntOrNull() == null) "<$name>" else "<arg:$name>")
 
     internal fun placeholderName(tag: String, arguments: ArgumentQueue): String? {
         val name = tag.lowercase(Locale.ROOT)
@@ -66,6 +75,15 @@ public object TranslationUtilities {
             val value = arguments.find(match.groupValues[1].lowercase(Locale.ROOT))
             if (value == null) match.value else PlainTextComponentSerializer.plainText().serialize(value)
         }
+
+    internal fun replacePlaceholders(click: ClickEvent<*>, arguments: TranslationArguments): ClickEvent<*> {
+        val action = click.action()
+        val payload = click.payload()
+        if (action !is ClickEvent.Action.TextCarrier || payload !is ClickEvent.Payload.Text) {
+            return click
+        }
+        return ClickEvent.clickEvent(action, ClickEvent.Payload.string(replacePlaceholders(payload.value(), arguments)))
+    }
 
     internal fun containsTranslatable(component: Component): Boolean =
         component is TranslatableComponent || component.children().any { containsTranslatable(it) }

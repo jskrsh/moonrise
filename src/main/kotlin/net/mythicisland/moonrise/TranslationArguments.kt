@@ -23,10 +23,12 @@ internal data class TranslationArguments(
             if (arguments.isEmpty()) {
                 return EMPTY
             }
-            val named = arguments
-                .mapNotNull { TranslationUtilities.namedArgument(it) }
-                .associate { it.name to transform(it.value) }
             val positional = arguments.map { transform(TranslationUtilities.unwrap(it)) }
+            val named = arguments
+                .map { TranslationUtilities.namedArgument(it)?.name }
+                .zip(positional)
+                .mapNotNull { (name, value) -> if (name == null) null else name to value }
+                .toMap()
             return TranslationArguments(named, positional)
         }
     }

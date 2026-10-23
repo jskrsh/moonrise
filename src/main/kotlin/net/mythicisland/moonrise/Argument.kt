@@ -3,6 +3,7 @@ package net.mythicisland.moonrise
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.ComponentLike
 import net.kyori.adventure.text.VirtualComponentRenderer
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 
 /**
  * A named argument that can be used as `<name>` in a message.
@@ -17,6 +18,8 @@ public class Argument private constructor(
 ) : VirtualComponentRenderer<Void> {
 
     override fun apply(context: Void): ComponentLike = value
+
+    override fun fallbackString(): String = PlainTextComponentSerializer.plainText().serialize(value)
 
     public companion object {
         @JvmStatic

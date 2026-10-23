@@ -82,7 +82,7 @@ class TranslationsTest {
 
     @Test
     fun `positional arguments are inserted`() = bothModes { translations ->
-        val result = translations.translate("positional", Locale.ENGLISH, Component.text("A"), Argument.string("b", "B"))
+        val result = translations.translate("positional", Locale.ENGLISH, Component.text("A"), Argument.string("second", "B"))
         assertEquals("A and B", plain.serialize(result))
     }
 
@@ -187,6 +187,7 @@ class TranslationsTest {
     @Test
     fun `invalid argument names are rejected`() {
         assertFailsWith<IllegalArgumentException> { Argument.string("no spaces", "value") }
+        assertFailsWith<IllegalArgumentException> { Argument.string("bold", "value") }
     }
 
     private fun colorOf(component: Component, content: String, inherited: TextColor?): TextColor? {

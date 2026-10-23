@@ -11,12 +11,20 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
 
 internal class TranslationParser(private val miniMessage: MiniMessage, private val tagResolver: TagResolver) {
 
-    private val markerResolver = TagResolver.resolver(tagResolver, MarkerTagResolver(TagResolver.resolver(miniMessage.tags(), tagResolver)))
+    private val reserved = TagResolver.resolver(miniMessage.tags(), tagResolver)
+    private val markerResolver = TagResolver.resolver(tagResolver, MarkerTagResolver(reserved))
 
     fun compile(raw: String): MessageNode {
         val component = miniMessage.deserialize(raw, markerResolver)
-        val node = compile(component)
+        val compiled = compile(component)
+        val modified = compiled !is MessageNode.Static && MODIFYING_PATTERN.containsMatchIn(raw)
+        val node = if (modified) MessageNode.Modified(raw, this) else compiled
         return if (containsTranslation(component)) MessageNode.Translating(node) else node
+    }
+
+    fun parse(raw: String, arguments: TranslationArguments): Component {
+        val component = miniMessage.deserialize(raw, TagResolver.resolver(tagResolver, ArgumentTagResolver(reserved, arguments)))
+        return replaceClicks(component, arguments)
     }
 
     private fun compile(component: Component): MessageNode {
@@ -51,12 +59,22 @@ internal class TranslationParser(private val miniMessage: MiniMessage, private v
         return click
     }
 
+    private fun replaceClicks(component: Component, arguments: TranslationArguments): Component {
+        val click = dynamicClick(component)
+        val replaced = if (click == null) component else component.clickEvent(TranslationUtilities.replacePlaceholders(click, arguments))
+        return replaced.children(component.children().map { replaceClicks(it, arguments) })
+    }
+
     private fun containsTranslation(component: Component): Boolean {
         if (component is TranslatableComponent && TranslationUtilities.markerName(component) == null) {
             return true
         }
         val hover = component.hoverEvent()?.value()
         return (hover is Component && containsTranslation(hover)) || component.children().any { containsTranslation(it) }
+    }
+
+    private companion object {
+        val MODIFYING_PATTERN = Regex("<(gradient|rainbow|pride)[:>]", RegexOption.IGNORE_CASE)
     }
 }
 
@@ -68,6 +86,19 @@ private class MarkerTagResolver(private val reserved: TagResolver) : TagResolver
         }
         val placeholder = TranslationUtilities.placeholderName(name, arguments) ?: return null
         return Tag.selfClosingInserting(TranslationUtilities.marker(placeholder))
+    }
+
+    override fun has(name: String): Boolean = !reserved.has(name)
+}
+
+private class ArgumentTagResolver(private val reserved: TagResolver, private val values: TranslationArguments) : TagResolver {
+
+    override fun resolve(name: String, arguments: ArgumentQueue, context: Context): Tag? {
+        if (reserved.has(name)) {
+            return null
+        }
+        val placeholder = TranslationUtilities.placeholderName(name, arguments) ?: return null
+        return Tag.selfClosingInserting(values.find(placeholder) ?: TranslationUtilities.missingPlaceholder(placeholder))
     }
 
     override fun has(name: String): Boolean = !reserved.has(name)

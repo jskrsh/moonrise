@@ -79,10 +79,16 @@ public class Translations private constructor(public val options: TranslationLoa
     public fun render(component: Component, audience: Audience): Component = render(component, localeOf(audience))
 
     /** Whether a translation exists for [key] and [locale]. */
-    public fun contains(key: String, locale: Locale): Boolean = translator.contains(key, locale)
+    public fun contains(key: String, locale: Locale): Boolean {
+        checkInitialized()
+        return translator.contains(key, locale)
+    }
 
     /** All locales that have at least one translation. */
-    public fun locales(): Set<Locale> = translator.locales()
+    public fun locales(): Set<Locale> {
+        checkInitialized()
+        return translator.locales()
+    }
 
     private fun localeOf(audience: Audience): Locale =
         audience.getOrDefault(Identity.LOCALE, options.defaultLocale) ?: options.defaultLocale

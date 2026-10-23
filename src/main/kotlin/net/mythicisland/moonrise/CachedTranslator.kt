@@ -6,6 +6,7 @@ import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TranslatableComponent
 import net.kyori.adventure.text.renderer.TranslatableComponentRenderer
+import net.kyori.adventure.translation.GlobalTranslator
 import net.kyori.adventure.translation.Translator
 import net.kyori.adventure.util.TriState
 import org.slf4j.LoggerFactory
@@ -41,16 +42,14 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
         return Component.text()
             .style(component.style())
             .append(translated)
-            .append(component.children().map { render(it, locale) })
+            .append(component.children().map { renderAll(it, locale) })
             .build()
     }
 
     fun translate(key: String, locale: Locale, arguments: List<Component>): Component? {
         val node = bundle.get().find(key, locale) ?: return null
         val rendered = render(node, locale, arguments)
-        val translating = node is MessageNode.Translating ||
-            (node is MessageNode.Unparsed && TranslationUtilities.containsTranslatable(rendered))
-        return if (translating) renderNested(rendered, locale) else rendered
+        return if (node is MessageNode.Translating) renderNested(rendered, locale) else rendered
     }
 
     fun render(component: Component, locale: Locale): Component = renderer.render(component, locale)
@@ -77,15 +76,13 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
         cache.invalidateAll()
     }
 
-    private fun node(locale: Locale, key: String, raw: String): Pair<String, MessageNode>? {
-        val compiled = try {
-            parser.compile(raw)
+    private fun node(locale: Locale, key: String, raw: String): Pair<String, MessageNode>? =
+        try {
+            key to parser.compile(raw)
         } catch (exception: Exception) {
             logger.error("Skipping translation {} for locale {}, it could not be parsed", key, locale, exception)
-            return null
+            null
         }
-        return key to if (options.isCachingEnabled) compiled else MessageNode.Unparsed(raw, parser)
-    }
 
     private fun render(node: MessageNode, locale: Locale, arguments: List<Component>): Component {
         if (node is MessageNode.Static) {
@@ -105,15 +102,18 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
         }
         depth.set(current + 1)
         try {
-            return render(component, locale)
+            return renderAll(component, locale)
         } finally {
             depth.set(current)
         }
     }
 
+    private fun renderAll(component: Component, locale: Locale): Component =
+        if (options.isGlobalTranslatorEnabled) GlobalTranslator.render(component, locale) else render(component, locale)
+
     private fun resolve(arguments: List<Component>, locale: Locale): TranslationArguments =
         TranslationArguments.of(arguments) { argument ->
-            if (TranslationUtilities.containsTranslatable(argument)) render(argument, locale) else argument
+            if (TranslationUtilities.containsTranslatable(argument)) renderAll(argument, locale) else argument
         }
 
     private fun merge(
