@@ -5,20 +5,24 @@ import net.kyori.adventure.text.TranslatableComponent
 import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.minimessage.Context
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.text.minimessage.tag.Modifying
 import net.kyori.adventure.text.minimessage.tag.Tag
 import net.kyori.adventure.text.minimessage.tag.resolver.ArgumentQueue
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 internal class TranslationParser(private val miniMessage: MiniMessage, private val tagResolver: TagResolver) {
 
     private val reserved = TagResolver.resolver(miniMessage.tags(), tagResolver)
-    private val markerResolver = TagResolver.resolver(tagResolver, MarkerTagResolver(reserved))
+    private val detector = MiniMessage.builder().tags(TagResolver.empty()).build()
 
     fun compile(raw: String): MessageNode {
-        val component = miniMessage.deserialize(raw, markerResolver)
+        val markers = MarkerTagResolver(reserved)
+        val component = miniMessage.deserialize(raw, TagResolver.resolver(tagResolver, markers))
         val compiled = compile(component)
-        val modified = compiled !is MessageNode.Static && MODIFYING_PATTERN.containsMatchIn(raw)
-        val node = if (modified) MessageNode.Modified(raw, this) else compiled
+        val modified = compiled !is MessageNode.Static && containsModifying(raw)
+        val node = if (modified || markers.count() > handledMarkers(component)) MessageNode.Modified(raw, this) else compiled
         return if (containsTranslation(component)) MessageNode.Translating(node) else node
     }
 
@@ -74,6 +78,21 @@ internal class TranslationParser(private val miniMessage: MiniMessage, private v
         return withInsertion.children(component.children().map { replaceEvents(it, arguments) })
     }
 
+    private fun containsModifying(raw: String): Boolean {
+        val modifying = ModifyingTagResolver(reserved)
+        detector.deserialize(raw, TagResolver.resolver(modifying, MarkerTagResolver(reserved)))
+        return modifying.isFound()
+    }
+
+    private fun handledMarkers(component: Component): Int {
+        if (TranslationUtilities.markerName(component) != null) {
+            return 1
+        }
+        val hover = component.hoverEvent()?.value()
+        val inHover = if (hover is Component) handledMarkers(hover) else 0
+        return inHover + component.children().sumOf { handledMarkers(it) }
+    }
+
     private fun containsTranslation(component: Component): Boolean {
         if (component is TranslatableComponent && TranslationUtilities.markerName(component) == null) {
             return true
@@ -81,23 +100,41 @@ internal class TranslationParser(private val miniMessage: MiniMessage, private v
         val hover = component.hoverEvent()?.value()
         return (hover is Component && containsTranslation(hover)) || component.children().any { containsTranslation(it) }
     }
-
-    private companion object {
-        val MODIFYING_PATTERN = Regex("<(gradient|rainbow|pride)[:>]", RegexOption.IGNORE_CASE)
-    }
 }
 
 private class MarkerTagResolver(private val reserved: TagResolver) : TagResolver {
+
+    private val created = AtomicInteger()
+
+    fun count(): Int = created.get()
 
     override fun resolve(name: String, arguments: ArgumentQueue, context: Context): Tag? {
         if (reserved.has(name)) {
             return null
         }
         val (placeholder, format) = TranslationUtilities.placeholder(name, arguments) ?: return null
+        created.incrementAndGet()
         return Tag.selfClosingInserting(TranslationUtilities.marker(placeholder, format))
     }
 
     override fun has(name: String): Boolean = !reserved.has(name)
+}
+
+private class ModifyingTagResolver(private val resolver: TagResolver) : TagResolver {
+
+    private val found = AtomicBoolean(false)
+
+    fun isFound(): Boolean = found.get()
+
+    override fun resolve(name: String, arguments: ArgumentQueue, context: Context): Tag? {
+        val tag = resolver.resolve(name, arguments, context)
+        if (tag is Modifying) {
+            found.set(true)
+        }
+        return tag
+    }
+
+    override fun has(name: String): Boolean = resolver.has(name)
 }
 
 private class ArgumentTagResolver(private val reserved: TagResolver, private val values: TranslationArguments) : TagResolver {

@@ -2,7 +2,9 @@ package net.mythicisland.moonrise
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
+import net.kyori.adventure.text.TranslationArgument
 import net.kyori.adventure.text.event.ClickEvent
+import net.kyori.adventure.text.event.HoverEvent
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
@@ -48,6 +50,11 @@ class TranslationsTest {
             loop: "Loop <lang:loop>"
             gradient: "<gradient:red:blue><player></gradient>"
             insert: "<insert:'/msg <player> '>Message</insert>"
+            lang-arguments: "<lang:positional:'<player>':'B'>"
+            entity: "<hover:show_entity:'minecraft:pig':'00000000-0000-0000-0000-000000000001':'<player>'>Pig</hover>"
+            pay: "<click:run_command:\"/pay <coins:'#,##0'>\">Pay</click>"
+            count: "<arg:0> items"
+            online: "<online:'Online':'Offline'>"
             coins: "<coins> Coins"
             price: "<price:'#,##0.00'>"
             amount: "<amount:choice:'0#no coins|1#one coin|1<{0} coins'>"
@@ -159,6 +166,37 @@ class TranslationsTest {
     fun `arguments inside insertions are inserted`() = bothModes { translations ->
         val result = translations.translate("insert", Locale.ENGLISH, Argument.string("player", "Steve"))
         assertEquals("/msg Steve ", findInsertion(result))
+    }
+
+    @Test
+    fun `arguments inside lang tags are inserted`() = bothModes { translations ->
+        val result = translations.translate("lang-arguments", Locale.ENGLISH, Argument.string("player", "Steve"))
+        assertEquals("Steve and B", plain.serialize(result))
+    }
+
+    @Test
+    fun `arguments inside entity hovers are inserted`() = bothModes { translations ->
+        val result = translations.translate("entity", Locale.ENGLISH, Argument.string("player", "Steve"))
+        val entity = assertNotNull(findHoverValue(result) as? HoverEvent.ShowEntity)
+        assertEquals("Steve", plain.serialize(assertNotNull(entity.name())))
+    }
+
+    @Test
+    fun `formats inside click events are applied`() = bothModes { translations ->
+        val result = translations.translate("pay", Locale.ENGLISH, Argument.number("coins", 1337))
+        assertEquals(ClickEvent.Payload.string("/pay 1,337"), assertNotNull(findClick(result)).payload())
+    }
+
+    @Test
+    fun `numeric translation arguments are formatted`() = bothModes { translations ->
+        val result = translations.translate("count", Locale.GERMAN, TranslationArgument.numeric(1337))
+        assertEquals("1.337 items", plain.serialize(result))
+    }
+
+    @Test
+    fun `booleans are formatted`() = bothModes { translations ->
+        assertEquals("Online", plain.serialize(translations.translate("online", Locale.ENGLISH, Argument.bool("online", true))))
+        assertEquals("Offline", plain.serialize(translations.translate("online", Locale.ENGLISH, Argument.bool("online", false))))
     }
 
     @Test
@@ -331,6 +369,9 @@ class TranslationsTest {
         }
         return component.children().firstNotNullOfOrNull { findHover(it) }
     }
+
+    private fun findHoverValue(component: Component): Any? =
+        component.hoverEvent()?.value() ?: component.children().firstNotNullOfOrNull { findHoverValue(it) }
 
     private fun findInsertion(component: Component): String? =
         component.insertion() ?: component.children().firstNotNullOfOrNull { findInsertion(it) }

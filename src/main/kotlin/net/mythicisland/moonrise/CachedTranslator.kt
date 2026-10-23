@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.ComponentLike
 import net.kyori.adventure.text.TranslatableComponent
 import net.kyori.adventure.text.renderer.TranslatableComponentRenderer
 import net.kyori.adventure.translation.GlobalTranslator
@@ -34,8 +35,7 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
     override fun hasAnyTranslations(): TriState = if (bundle.get().size > 0) TriState.TRUE else TriState.FALSE
 
     override fun translate(component: TranslatableComponent, locale: Locale): Component? {
-        val arguments = component.arguments().map { it.asComponent() }
-        val translated = translate(component.key(), locale, arguments) ?: return null
+        val translated = translate(component.key(), locale, component.arguments()) ?: return null
         if (component.style().isEmpty && component.children().isEmpty()) {
             return translated
         }
@@ -46,7 +46,7 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
             .build()
     }
 
-    fun translate(key: String, locale: Locale, arguments: List<Component>): Component? {
+    fun translate(key: String, locale: Locale, arguments: List<ComponentLike>): Component? {
         val node = bundle.get().find(key, locale) ?: return null
         if (node is MessageNode.Static) {
             return node.render(TranslationArguments.EMPTY)
@@ -120,7 +120,7 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
     private fun renderAll(component: Component, locale: Locale): Component =
         if (options.isGlobalTranslatorEnabled) GlobalTranslator.render(component, locale) else render(component, locale)
 
-    private fun resolve(arguments: List<Component>, locale: Locale): TranslationArguments =
+    private fun resolve(arguments: List<ComponentLike>, locale: Locale): TranslationArguments =
         TranslationArguments.of(arguments, locale) { argument ->
             if (TranslationUtilities.containsTranslatable(argument)) renderAll(argument, locale) else argument
         }

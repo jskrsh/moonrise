@@ -4,7 +4,6 @@ import java.text.Format
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
-/** Keeps one format per locale and returns a copy, because formats are not thread safe. */
 internal abstract class LocaleFormats<T : Format> {
 
     private val formats = ConcurrentHashMap<Locale, T>()

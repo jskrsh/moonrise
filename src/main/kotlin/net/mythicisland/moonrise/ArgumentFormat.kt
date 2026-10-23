@@ -62,9 +62,9 @@ internal sealed interface ArgumentFormat {
                 is TemporalAccessor -> date?.withLocale(locale)?.format(value)
                 else -> null
             }
-        } catch (exception: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
             null
-        } catch (exception: DateTimeException) {
+        } catch (_: DateTimeException) {
             null
         }
     }
@@ -85,16 +85,22 @@ internal sealed interface ArgumentFormat {
             if (value is Number) formats.get(locale).format(arrayOf(value)) else null
     }
 
+    /** `<online:'Online':'Offline'>`. */
+    data class Bool(private val whenTrue: String, private val whenFalse: String) : ArgumentFormat {
+        override fun format(value: Any, locale: Locale): String? =
+            if (value is Boolean) (if (value) whenTrue else whenFalse) else null
+    }
+
     companion object {
         private const val CHOICE = "choice"
 
-        fun isFormat(arguments: List<String>): Boolean =
-            arguments.size <= 1 || (arguments.size == 2 && arguments[0].lowercase(Locale.ROOT) == CHOICE)
+        fun isFormat(arguments: List<String>): Boolean = arguments.size <= 2
 
         fun of(arguments: List<String>): ArgumentFormat? = when {
             arguments.isEmpty() -> Default
             arguments.size == 1 -> Pattern(arguments[0])
-            isFormat(arguments) -> Choice(arguments[1])
+            arguments.size == 2 && arguments[0].lowercase(Locale.ROOT) == CHOICE -> Choice(arguments[1])
+            arguments.size == 2 -> Bool(arguments[0], arguments[1])
             else -> null
         }
     }

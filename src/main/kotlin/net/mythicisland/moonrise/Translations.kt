@@ -61,8 +61,8 @@ public class Translations private constructor(public val options: TranslationLoa
     /** Translates [key] for [locale]. Returns a translatable component if the key does not exist. */
     public fun translate(key: String, locale: Locale, vararg arguments: ComponentLike): Component {
         checkInitialized()
-        val components = arguments.map { it.asComponent() }
-        return translator.translate(key, locale, components) ?: Component.translatable(key, components)
+        val values = arguments.toList()
+        return translator.translate(key, locale, values) ?: Component.translatable(key, values)
     }
 
     /** Translates [key] for the locale of [audience]. */

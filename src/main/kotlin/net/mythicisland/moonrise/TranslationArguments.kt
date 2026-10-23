@@ -1,6 +1,8 @@
 package net.mythicisland.moonrise
 
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.ComponentLike
+import net.kyori.adventure.text.TranslationArgument
 import java.util.Locale
 
 internal data class TranslationArguments(
@@ -30,13 +32,22 @@ internal data class TranslationArguments(
     companion object {
         val EMPTY: TranslationArguments = TranslationArguments(emptyList(), emptyList(), Locale.ROOT)
 
-        fun of(arguments: List<Component>, locale: Locale, transform: (Component) -> Component): TranslationArguments {
+        fun of(arguments: List<ComponentLike>, locale: Locale, transform: (Component) -> Component): TranslationArguments {
             if (arguments.isEmpty()) {
                 return TranslationArguments(emptyList(), emptyList(), locale)
             }
-            val named = arguments.map { TranslationUtilities.namedArgument(it) }
-            val values = arguments.zip(named) { argument, value -> Value(transform(value?.value ?: argument), value?.raw) }
+            val components = arguments.map { it.asComponent() }
+            val named = components.map { TranslationUtilities.namedArgument(it) }
+            val values = arguments.indices.map { value(arguments[it], components[it], named[it], transform) }
             return TranslationArguments(named.map { it?.name }, values, locale)
+        }
+
+        private fun value(argument: ComponentLike, component: Component, named: Argument?, transform: (Component) -> Component): Value {
+            if (named != null) {
+                return Value(transform(named.value), named.raw)
+            }
+            val raw = if (argument is TranslationArgument && argument.value() !is Component) argument.value() else null
+            return Value(transform(component), raw)
         }
     }
 }

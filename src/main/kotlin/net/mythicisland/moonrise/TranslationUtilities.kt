@@ -15,7 +15,8 @@ public object TranslationUtilities {
     private val LOCALE_PATTERN = Regex("^[a-zA-Z]{2,3}([_-][a-zA-Z0-9]{2,8})*$")
     private val ARGUMENT_NAME_PATTERN = Regex("^[a-z0-9_-]+$")
     private val POSITIONAL_TAGS = setOf("arg", "argument")
-    private val PLACEHOLDER_PATTERN = Regex("<(?:arg(?:ument)?:)?([a-zA-Z0-9_-]+)>")
+    private val PLACEHOLDER_PATTERN = Regex("""<(arg(?:ument)?:)?([a-zA-Z0-9_-]+)((?::(?:'[^']*'|"[^"]*"|[^:'"<>]*))*)>""")
+    private val FORMAT_PATTERN = Regex(""":(?:'([^']*)'|"([^"]*)"|([^:'"<>]*))""")
     private val STANDARD_TAGS = StandardTags.defaults()
 
     public fun parseLocale(value: String): Locale? {
@@ -81,10 +82,26 @@ public object TranslationUtilities {
     internal fun containsPlaceholder(text: String): Boolean = PLACEHOLDER_PATTERN.containsMatchIn(text)
 
     internal fun replacePlaceholders(text: String, arguments: TranslationArguments): String =
-        PLACEHOLDER_PATTERN.replace(text) { match ->
-            val value = arguments.find(match.groupValues[1].lowercase(Locale.ROOT))
-            if (value == null) match.value else PlainTextComponentSerializer.plainText().serialize(value)
+        PLACEHOLDER_PATTERN.replace(text) { replacement(it, arguments) }
+
+    private fun replacement(match: MatchResult, arguments: TranslationArguments): String {
+        val name = match.groupValues[2].lowercase(Locale.ROOT)
+        if (match.groupValues[1].isNotEmpty() && name.toIntOrNull() == null) {
+            return match.value
         }
+        val format = textFormat(match.groupValues[3]) ?: return match.value
+        val value = arguments.find(name, format) ?: return match.value
+        return PlainTextComponentSerializer.plainText().serialize(value)
+    }
+
+    private fun textFormat(text: String): ArgumentFormat? {
+        val values = FORMAT_PATTERN.findAll(text).map { (it.groups[1] ?: it.groups[2] ?: it.groups[3])?.value.orEmpty() }.toList()
+        return try {
+            ArgumentFormat.of(values)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+    }
 
     internal fun replacePlaceholders(click: ClickEvent<*>, arguments: TranslationArguments): ClickEvent<*> {
         val action = click.action()

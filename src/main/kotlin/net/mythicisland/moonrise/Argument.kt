@@ -30,14 +30,12 @@ public class Argument private constructor(
         @JvmStatic
         public fun string(name: String, value: String): Component = component(name, Component.text(value))
 
-        /** Formatted for the locale, e.g. `<coins>`, `<coins:'#,##0.00'>` or `<coins:choice:'0#no coins|1#one coin|1<{0} coins'>`. */
         @JvmStatic
         public fun number(name: String, value: Number): Component = create(name, Component.text(value.toString()), value)
 
         @JvmStatic
-        public fun bool(name: String, value: Boolean): Component = component(name, Component.text(value))
+        public fun bool(name: String, value: Boolean): Component = create(name, Component.text(value), value)
 
-        /** Formatted for the locale, e.g. `<date>` or `<date:'dd.MM.yyyy'>`. */
         @JvmStatic
         public fun date(name: String, value: TemporalAccessor): Component = create(name, Component.text(value.toString()), value)
 
