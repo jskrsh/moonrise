@@ -9,6 +9,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
 import net.kyori.adventure.translation.GlobalTranslator
 import net.kyori.adventure.translation.Translator
+import net.mythicisland.moonrise.translator.CachedTranslator
 import org.slf4j.LoggerFactory
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean

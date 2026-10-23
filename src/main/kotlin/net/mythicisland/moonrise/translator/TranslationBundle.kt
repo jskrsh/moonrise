@@ -1,5 +1,6 @@
-package net.mythicisland.moonrise
+package net.mythicisland.moonrise.translator
 
+import net.mythicisland.moonrise.parser.MessageNode
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 

@@ -1,4 +1,4 @@
-package net.mythicisland.moonrise
+package net.mythicisland.moonrise.translator
 
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
@@ -10,6 +10,10 @@ import net.kyori.adventure.text.renderer.TranslatableComponentRenderer
 import net.kyori.adventure.translation.GlobalTranslator
 import net.kyori.adventure.translation.Translator
 import net.kyori.adventure.util.TriState
+import net.mythicisland.moonrise.TranslationLoaderOptions
+import net.mythicisland.moonrise.parser.MessageNode
+import net.mythicisland.moonrise.parser.TranslationArguments
+import net.mythicisland.moonrise.parser.TranslationParser
 import org.slf4j.LoggerFactory
 import java.text.MessageFormat
 import java.util.Locale
@@ -18,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference
 internal class CachedTranslator(private val options: TranslationLoaderOptions) : Translator {
 
     private val logger = LoggerFactory.getLogger(CachedTranslator::class.java)
-    private val depth = ThreadLocal.withInitial { 0 }
+    private val depth = ThreadLocal<Int>()
     private val parser = TranslationParser(options.miniMessage, options.tagResolver)
     private val bundle = AtomicReference(TranslationBundle.empty(options.defaultLocale))
     private val renderer = TranslatableComponentRenderer.usingTranslationSource(this)
@@ -105,7 +109,7 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
     }
 
     private fun renderNested(component: Component, locale: Locale): Component {
-        val current = depth.get()
+        val current = depth.get() ?: 0
         if (current >= MAXIMUM_DEPTH) {
             return component
         }
@@ -120,10 +124,19 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
     private fun renderAll(component: Component, locale: Locale): Component =
         if (options.isGlobalTranslatorEnabled) GlobalTranslator.render(component, locale) else render(component, locale)
 
-    private fun resolve(arguments: List<ComponentLike>, locale: Locale): TranslationArguments =
-        TranslationArguments.of(arguments, locale) { argument ->
-            if (TranslationUtilities.containsTranslatable(argument)) renderAll(argument, locale) else argument
+    private fun resolve(arguments: List<ComponentLike>, locale: Locale): TranslationArguments {
+        val resolved = TranslationArguments.of(arguments, locale)
+        if (resolved.values.none { containsTranslatable(it.component) }) {
+            return resolved
         }
+        return resolved.copy(values = resolved.values.map { render(it, locale) })
+    }
+
+    private fun render(value: TranslationArguments.Value, locale: Locale): TranslationArguments.Value =
+        if (containsTranslatable(value.component)) value.copy(component = renderAll(value.component, locale)) else value
+
+    private fun containsTranslatable(component: Component): Boolean =
+        component is TranslatableComponent || component.children().any { containsTranslatable(it) }
 
     private fun merge(
         first: Map<Locale, Map<String, String>>,

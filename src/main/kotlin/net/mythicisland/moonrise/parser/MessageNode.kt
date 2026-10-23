@@ -1,9 +1,10 @@
-package net.mythicisland.moonrise
+package net.mythicisland.moonrise.parser
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.event.HoverEvent
 import net.kyori.adventure.text.format.Style
+import net.mythicisland.moonrise.ArgumentFormat
 
 internal sealed interface MessageNode {
 
@@ -17,7 +18,7 @@ internal sealed interface MessageNode {
     /** A placeholder like `<player>` or `<arg:0>`. */
     class Placeholder(private val name: String, private val format: ArgumentFormat, private val style: Style) : MessageNode {
 
-        private val missing = TranslationUtilities.missingPlaceholder(name)
+        private val missing = Placeholders.missing(name)
 
         override fun render(arguments: TranslationArguments): Component {
             val value = arguments.find(name, format) ?: missing
@@ -37,8 +38,8 @@ internal sealed interface MessageNode {
         override fun render(arguments: TranslationArguments): Component {
             val rendered = component.children(children.map { it.render(arguments) })
             val withHover = if (hover == null) rendered else rendered.hoverEvent(HoverEvent.showText(hover.render(arguments)))
-            val withClick = if (click == null) withHover else withHover.clickEvent(TranslationUtilities.replacePlaceholders(click, arguments))
-            return if (insertion == null) withClick else withClick.insertion(TranslationUtilities.replacePlaceholders(insertion, arguments))
+            val withClick = if (click == null) withHover else withHover.clickEvent(Placeholders.replace(click, arguments))
+            return if (insertion == null) withClick else withClick.insertion(Placeholders.replace(insertion, arguments))
         }
     }
 
