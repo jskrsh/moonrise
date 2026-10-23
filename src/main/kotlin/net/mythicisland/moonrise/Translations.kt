@@ -18,16 +18,17 @@ public class Translations private constructor(public val options: TranslationLoa
     private val logger = LoggerFactory.getLogger(Translations::class.java)
     private val translator = CachedTranslator(options)
     private val initialized = AtomicBoolean(false)
+    private val lock = Any()
 
     /** Whether the translations are currently loaded. */
     public val isInitialized: Boolean
         get() = initialized.get()
 
     /** Loads all translations and registers them at the [GlobalTranslator]. */
-    public fun initialize() {
+    public fun initialize(): Unit = synchronized(lock) {
         check(!initialized.get()) { "Translations are already initialized" }
         val bundle = translator.load()
-        check(initialized.compareAndSet(false, true)) { "Translations are already initialized" }
+        initialized.set(true)
         if (options.isGlobalTranslatorEnabled) {
             GlobalTranslator.translator().addSource(translator)
         }
@@ -35,16 +36,16 @@ public class Translations private constructor(public val options: TranslationLoa
     }
 
     /** Loads all translations again and clears the cache. */
-    public fun reload() {
+    public fun reload(): Unit = synchronized(lock) {
         check(initialized.get()) { "Translations are not initialized" }
         val bundle = translator.load()
         logger.info("Reloaded {} translations for {} locales", bundle.size, bundle.locales.size)
     }
 
     /** Unregisters the translations and clears the cache. */
-    public fun shutdown() {
+    public fun shutdown(): Unit = synchronized(lock) {
         if (!initialized.compareAndSet(true, false)) {
-            return
+            return@synchronized
         }
         if (options.isGlobalTranslatorEnabled) {
             GlobalTranslator.translator().removeSource(translator)

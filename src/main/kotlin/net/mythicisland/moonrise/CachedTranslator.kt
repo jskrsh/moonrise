@@ -8,12 +8,15 @@ import net.kyori.adventure.text.TranslatableComponent
 import net.kyori.adventure.text.renderer.TranslatableComponentRenderer
 import net.kyori.adventure.translation.Translator
 import net.kyori.adventure.util.TriState
+import org.slf4j.LoggerFactory
 import java.text.MessageFormat
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicReference
 
 internal class CachedTranslator(private val options: TranslationLoaderOptions) : Translator {
 
+    private val logger = LoggerFactory.getLogger(CachedTranslator::class.java)
+    private val depth = ThreadLocal.withInitial { 0 }
     private val parser = TranslationParser(options.miniMessage, options.tagResolver)
     private val bundle = AtomicReference(TranslationBundle.empty(options.defaultLocale))
     private val renderer = TranslatableComponentRenderer.usingTranslationSource(this)
@@ -38,20 +41,16 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
         return Component.text()
             .style(component.style())
             .append(translated)
-            .append(component.children())
+            .append(component.children().map { render(it, locale) })
             .build()
     }
 
     fun translate(key: String, locale: Locale, arguments: List<Component>): Component? {
         val node = bundle.get().find(key, locale) ?: return null
-        if (node is MessageNode.Static) {
-            return node.render(TranslationArguments.EMPTY)
-        }
-        val resolved = resolve(arguments, locale)
-        if (!options.isCachingEnabled) {
-            return node.render(resolved)
-        }
-        return cache.get(RenderKey(node, resolved)) { node.render(resolved) }
+        val rendered = render(node, locale, arguments)
+        val translating = node is MessageNode.Translating ||
+            (node is MessageNode.Unparsed && TranslationUtilities.containsTranslatable(rendered))
+        return if (translating) renderNested(rendered, locale) else rendered
     }
 
     fun render(component: Component, locale: Locale): Component = renderer.render(component, locale)
@@ -64,8 +63,8 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
         val loaded = options.loaders
             .map { it.load() }
             .fold(emptyMap<Locale, Map<String, String>>()) { merged, translations -> merge(merged, translations) }
-        val messages = loaded.mapValues { (_, translations) ->
-            translations.mapValues { (_, raw) -> node(raw) }
+        val messages = loaded.mapValues { (locale, translations) ->
+            translations.entries.mapNotNull { (key, raw) -> node(locale, key, raw) }.toMap()
         }
         val created = TranslationBundle(messages, options.defaultLocale)
         bundle.set(created)
@@ -78,8 +77,39 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
         cache.invalidateAll()
     }
 
-    private fun node(raw: String): MessageNode =
-        if (options.isCachingEnabled) parser.compile(raw) else MessageNode.Unparsed(raw, parser)
+    private fun node(locale: Locale, key: String, raw: String): Pair<String, MessageNode>? {
+        val compiled = try {
+            parser.compile(raw)
+        } catch (exception: Exception) {
+            logger.error("Skipping translation {} for locale {}, it could not be parsed", key, locale, exception)
+            return null
+        }
+        return key to if (options.isCachingEnabled) compiled else MessageNode.Unparsed(raw, parser)
+    }
+
+    private fun render(node: MessageNode, locale: Locale, arguments: List<Component>): Component {
+        if (node is MessageNode.Static) {
+            return node.render(TranslationArguments.EMPTY)
+        }
+        val resolved = resolve(arguments, locale)
+        if (!options.isCachingEnabled) {
+            return node.render(resolved)
+        }
+        return cache.get(RenderKey(node, resolved)) { node.render(resolved) }
+    }
+
+    private fun renderNested(component: Component, locale: Locale): Component {
+        val current = depth.get()
+        if (current >= MAXIMUM_DEPTH) {
+            return component
+        }
+        depth.set(current + 1)
+        try {
+            return render(component, locale)
+        } finally {
+            depth.set(current)
+        }
+    }
 
     private fun resolve(arguments: List<Component>, locale: Locale): TranslationArguments =
         TranslationArguments.of(arguments) { argument ->
@@ -93,4 +123,8 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
         (first.keys + second.keys).associateWith { first[it].orEmpty() + second[it].orEmpty() }
 
     private data class RenderKey(val node: MessageNode, val arguments: TranslationArguments)
+
+    private companion object {
+        const val MAXIMUM_DEPTH = 8
+    }
 }

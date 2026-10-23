@@ -16,8 +16,11 @@ internal sealed interface MessageNode {
 
     /** A placeholder like `<player>` or `<arg:0>`. */
     class Placeholder(private val name: String, private val style: Style) : MessageNode {
+
+        private val missing = Component.text(if (name.toIntOrNull() == null) "<$name>" else "<arg:$name>")
+
         override fun render(arguments: TranslationArguments): Component {
-            val value = arguments.find(name) ?: Component.text("<$name>")
+            val value = arguments.find(name) ?: missing
             return if (style.isEmpty) value else value.applyFallbackStyle(style)
         }
     }
@@ -45,6 +48,11 @@ internal sealed interface MessageNode {
             val text = TranslationUtilities.replacePlaceholders(payload.value(), arguments)
             return ClickEvent.clickEvent(action, ClickEvent.Payload.string(text))
         }
+    }
+
+    /** A message that contains translatable components like `<lang:key>`. */
+    class Translating(private val node: MessageNode) : MessageNode {
+        override fun render(arguments: TranslationArguments): Component = node.render(arguments)
     }
 
     /** Used when caching is disabled. */

@@ -10,7 +10,7 @@ import java.util.Locale
 public object TranslationUtilities {
 
     private const val MARKER_PREFIX = "moonrise.placeholder:"
-    private val LOCALE_PATTERN = Regex("^[a-zA-Z]{2,8}([_-][a-zA-Z0-9]{2,8})*$")
+    private val LOCALE_PATTERN = Regex("^[a-zA-Z]{2,3}([_-][a-zA-Z0-9]{2,8})*$")
     private val ARGUMENT_NAME_PATTERN = Regex("^[a-z0-9_-]+$")
     private val POSITIONAL_TAGS = setOf("arg", "argument")
     private val PLACEHOLDER_PATTERN = Regex("<(?:arg(?:ument)?:)?([a-zA-Z0-9_-]+)>")
