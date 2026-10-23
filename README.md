@@ -1,18 +1,8 @@
 # moonrise
 
-A small and fast translation library based on Adventure MiniMessage.
+A small and fast translation library for Adventure, based on MiniMessage.
 
-## Features
-
-- Named (`<player>`) and positional (`<arg:0>`) placeholders
-- Loaders for `.properties`, `.yml`/`.yaml` and `.json` files
-- Works with the Adventure `GlobalTranslator`, so `Component.translatable(...)` just works
-- Messages are parsed once and rendered results are cached
-- Reloading at runtime
-
-## Usage
-
-### Dependency
+## Dependency
 
 ```kotlin
 repositories {
@@ -20,74 +10,45 @@ repositories {
 }
 
 dependencies {
-    implementation("net.mythicisland:moonrise:1.1.0")
+    implementation("net.mythicisland:moonrise:1.2.0")
 }
 ```
 
-moonrise requires Java 25. Adventure is not included, it is expected to be provided by the platform (e.g. Minestom or Velocity).
+Requires Java 25. Adventure is not included, it has to be provided by the platform.
 
-### Translation files
-
-The locale is taken from the folder or the file name. All files inside a locale folder are merged.
-
-```
-translations/
-├── en_US/
-│   ├── lobby.properties
-│   └── game.properties
-└── de_DE.properties
-```
-
-```properties
-lobby.welcome=<prefix> <green>Welcome <player>!
-lobby.coins=<gray>You have <gold><arg:0></gold> coins
-lobby.discord=<click:open_url:'https://discord.gg/example'>Join our Discord, <player></click>
-```
-
-### Setup
+## Setup
 
 ```kotlin
 val translations = Translations.builder()
-    .loader(PropertiesTranslationLoader(dataFolder.resolve("translations")))
+    .loader(YamlTranslationLoader(dataFolder.resolve("translations")))
     .defaultLocale(Locale.US)
-    .tagResolver(Placeholder.parsed("prefix", "<dark_gray>[<gold>Lobby</gold>]</dark_gray>"))
+    .tagResolver(Placeholder.parsed("prefix", "<gray>[<gold>Lobby</gold>]</gray>"))
     .build()
 
 translations.initialize()
 ```
 
-### Sending messages
+The locale is taken from the file or folder name, e.g. `en_US.yml` or `de_DE/lobby.yml`. If a key is missing, other loaded locales of the same language are used first, then the default locale.
 
-Translations are registered at the `GlobalTranslator`, so translatable components are translated for the locale of each player:
+## Messages
+
+```yaml
+welcome: "<prefix> <green>Welcome <player>!"
+coins: "You have <gold><coins></gold> <coins:choice:'0#coins|1#coin|1<coins'>"
+price: "Price: <price:'#,##0.00'>"
+joined: "Joined on <date:'dd.MM.yyyy'>"
+status: "<player> is <online:'<green>online':'<red>offline'>"
+```
 
 ```kotlin
-player.sendMessage(Component.translatable("lobby.welcome", Argument.string("player", player.name)))
-player.sendMessage(Component.translatable("lobby.coins", Component.text(1337)))
+player.sendMessage(Component.translatable("welcome", Argument.string("player", player.name)))
+player.sendMessage(Component.translatable("coins", Argument.number("coins", 1337)))
+
+val message = translations.translate("welcome", player, Argument.string("player", player.name))
 ```
 
-You can also translate a message directly:
-
-```kotlin
-val message = translations.translate("lobby.welcome", player, Argument.string("player", player.name))
-```
-
-## Performance
-
-moonrise parses every message only once while loading. Each message is split into static parts and placeholders:
-
-- Messages without placeholders are parsed into a single component that is returned every time.
-- Messages with placeholders keep their static parts and only insert the arguments when rendering.
-- The rendered result of a message with arguments is cached. Sending the same message with the same arguments again returns the cached component. The cache holds up to 10,000 entries by default.
-Caching can be turned off with `disableCaching()`.
-
-### Benchmarks
-
-Run the benchmarks yourself with:
-
-```
-./gradlew jmh
-```
+Arguments can't use names of MiniMessage tags like `color` or `key`.
 
 ## License
 
-This project is licensed under the Apache License 2.0.
+Apache License 2.0
