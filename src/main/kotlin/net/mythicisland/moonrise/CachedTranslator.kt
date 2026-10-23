@@ -48,8 +48,21 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
 
     fun translate(key: String, locale: Locale, arguments: List<Component>): Component? {
         val node = bundle.get().find(key, locale) ?: return null
-        val rendered = render(node, locale, arguments)
-        return if (node is MessageNode.Translating) renderNested(rendered, locale) else rendered
+        if (node is MessageNode.Static) {
+            return node.render(TranslationArguments.EMPTY)
+        }
+        val resolved = resolve(arguments, locale)
+        if (!options.isCachingEnabled) {
+            return render(node, resolved, locale)
+        }
+        val renderKey = RenderKey(node, resolved)
+        val cached = cache.getIfPresent(renderKey)
+        if (cached != null) {
+            return cached
+        }
+        val rendered = render(node, resolved, locale)
+        cache.put(renderKey, rendered)
+        return rendered
     }
 
     fun render(component: Component, locale: Locale): Component = renderer.render(component, locale)
@@ -86,15 +99,9 @@ internal class CachedTranslator(private val options: TranslationLoaderOptions) :
             null
         }
 
-    private fun render(node: MessageNode, locale: Locale, arguments: List<Component>): Component {
-        if (node is MessageNode.Static) {
-            return node.render(TranslationArguments.EMPTY)
-        }
-        val resolved = resolve(arguments, locale)
-        if (!options.isCachingEnabled) {
-            return node.render(resolved)
-        }
-        return cache.get(RenderKey(node, resolved)) { node.render(resolved) }
+    private fun render(node: MessageNode, arguments: TranslationArguments, locale: Locale): Component {
+        val rendered = node.render(arguments)
+        return if (node is MessageNode.Translating) renderNested(rendered, locale) else rendered
     }
 
     private fun renderNested(component: Component, locale: Locale): Component {

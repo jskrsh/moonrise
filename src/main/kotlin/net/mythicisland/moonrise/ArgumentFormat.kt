@@ -17,19 +17,27 @@ internal sealed interface ArgumentFormat {
 
     /** `<coins>`, formats numbers and dates for the locale. */
     data object Default : ArgumentFormat {
+
+        private val numbers = object : LocaleFormats<NumberFormat>() {
+            override fun create(locale: Locale): NumberFormat = NumberFormat.getInstance(locale)
+        }
+        private val dateTime = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
+        private val date = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+        private val time = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
+
         override fun format(value: Any, locale: Locale): String? = when (value) {
-            is Number -> NumberFormat.getInstance(locale).format(value)
+            is Number -> numbers.get(locale).format(value)
             is TemporalAccessor -> localized(value)?.withLocale(locale)?.format(value)
             else -> null
         }
 
         private fun localized(value: TemporalAccessor): DateTimeFormatter? {
-            val date = value.isSupported(ChronoField.EPOCH_DAY)
-            val time = value.isSupported(ChronoField.NANO_OF_DAY)
+            val hasDate = value.isSupported(ChronoField.EPOCH_DAY)
+            val hasTime = value.isSupported(ChronoField.NANO_OF_DAY)
             return when {
-                date && time -> DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
-                date -> DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-                time -> DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
+                hasDate && hasTime -> dateTime
+                hasDate -> date
+                hasTime -> time
                 else -> null
             }
         }
@@ -38,15 +46,20 @@ internal sealed interface ArgumentFormat {
     /** `<coins:'#,##0.00'>` or `<date:'dd.MM.yyyy'>`. */
     data class Pattern(private val pattern: String) : ArgumentFormat {
 
+        private val numbers = object : LocaleFormats<DecimalFormat>() {
+            override fun create(locale: Locale): DecimalFormat = DecimalFormat(pattern, DecimalFormatSymbols.getInstance(locale))
+        }
+        private val isNumber = runCatching { DecimalFormat(pattern) }.isSuccess
+        private val date = runCatching { DateTimeFormatter.ofPattern(pattern) }.getOrNull()
+
         init {
-            val valid = runCatching { DecimalFormat(pattern) }.isSuccess || runCatching { DateTimeFormatter.ofPattern(pattern) }.isSuccess
-            require(valid) { "Invalid format pattern '$pattern'" }
+            require(isNumber || date != null) { "Invalid format pattern '$pattern'" }
         }
 
         override fun format(value: Any, locale: Locale): String? = try {
             when (value) {
-                is Number -> DecimalFormat(pattern, DecimalFormatSymbols.getInstance(locale)).format(value)
-                is TemporalAccessor -> DateTimeFormatter.ofPattern(pattern, locale).format(value)
+                is Number -> if (isNumber) numbers.get(locale).format(value) else null
+                is TemporalAccessor -> date?.withLocale(locale)?.format(value)
                 else -> null
             }
         } catch (exception: IllegalArgumentException) {
@@ -59,14 +72,17 @@ internal sealed interface ArgumentFormat {
     /** `<coins:choice:'0#no coins|1#one coin|1<{0} coins'>`. */
     data class Choice(private val pattern: String) : ArgumentFormat {
 
+        private val template = "{0,choice,$pattern}"
+        private val formats = object : LocaleFormats<MessageFormat>() {
+            override fun create(locale: Locale): MessageFormat = MessageFormat(template, locale)
+        }
+
         init {
-            MessageFormat(template())
+            MessageFormat(template)
         }
 
         override fun format(value: Any, locale: Locale): String? =
-            if (value is Number) MessageFormat(template(), locale).format(arrayOf(value)) else null
-
-        private fun template(): String = "{0,choice,$pattern}"
+            if (value is Number) formats.get(locale).format(arrayOf(value)) else null
     }
 
     companion object {

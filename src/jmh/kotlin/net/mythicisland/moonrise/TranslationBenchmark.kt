@@ -23,9 +23,6 @@ import java.util.concurrent.TimeUnit
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.writeText
 
-private const val STATIC = "<gradient:#ff0000:#00ff00>Welcome to the server!</gradient> <gray>Have fun and enjoy your stay."
-private const val DYNAMIC = "<green>Hello <player>, <hover:show_text:'<gray>Coins: <coins>'>you have <gold><coins></gold> coins</hover>!"
-
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -80,6 +77,27 @@ open class TranslationBenchmark {
     @Benchmark
     fun cachedRenderTranslatable(): Component = cached.render(translatable, Locale.GERMANY)
 
+    @Benchmark
+    fun uncachedFormatted(): Component = uncached.translate("formatted", Locale.GERMANY, coins)
+
+    @Benchmark
+    fun cachedChangingFormatted(): Component {
+        val random = Argument.number("coins", ThreadLocalRandom.current().nextInt(1_000_000))
+        return cached.translate("formatted", Locale.GERMANY, random)
+    }
+
+    @Benchmark
+    fun uncachedGradient(): Component = uncached.translate("gradient", Locale.ENGLISH, player)
+
+    @Benchmark
+    fun cachedGradient(): Component = cached.translate("gradient", Locale.ENGLISH, player)
+
+    @Benchmark
+    fun uncachedLang(): Component = uncached.translate("lang", Locale.ENGLISH, player)
+
+    @Benchmark
+    fun cachedLang(): Component = cached.translate("lang", Locale.ENGLISH, player)
+
     private fun create(caching: Boolean): Translations {
         val builder = Translations.builder()
             .loader(YamlTranslationLoader(directory))
@@ -90,7 +108,16 @@ open class TranslationBenchmark {
 
     private fun createLanguageDirectory(): Path {
         val directory = createTempDirectory("moonrise-benchmark")
-        directory.resolve("en.yml").writeText("static: \"$STATIC\"\ndynamic: \"$DYNAMIC\"\n")
+        val messages = mapOf("static" to STATIC, "dynamic" to DYNAMIC, "formatted" to FORMATTED, "gradient" to GRADIENT, "lang" to LANG)
+        directory.resolve("en.yml").writeText(messages.entries.joinToString("\n") { (key, value) -> "$key: \"$value\"" })
         return directory
+    }
+
+    private companion object {
+        const val STATIC = "<gradient:#ff0000:#00ff00>Welcome to the server!</gradient> <gray>Have fun and enjoy your stay."
+        const val DYNAMIC = "<green>Hello <player>, <hover:show_text:'<gray>Coins: <coins>'>you have <gold><coins></gold> coins</hover>!"
+        const val FORMATTED = "<gray>You have <gold><coins:'#,##0.00'></gold> <coins:choice:'0#coins|1#coin|1<coins'>"
+        const val GRADIENT = "<gradient:#ff0000:#00ff00>Welcome <player>!</gradient>"
+        const val LANG = "<lang:static> <gray>Hello <player>"
     }
 }

@@ -26,7 +26,6 @@ slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 # Configurate
 configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref = "configurate" }
 configurate-gson = { module = "org.spongepowered:configurate-gson", version.ref = "configurate" }
-configurate-extra-kotlin = { module = "org.spongepowered:configurate-extra-kotlin", version.ref = "configurate" }
 
 # Caching
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
@@ -34,13 +33,11 @@ caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "c
 # Adventure
 adventure-api = { module = "net.kyori:adventure-api", version.ref = "adventure" }
 adventure-text-minimessage = { module = "net.kyori:adventure-text-minimessage", version.ref = "adventure" }
-adventure-text-serializer-gson = { module = "net.kyori:adventure-text-serializer-gson", version.ref = "adventure" }
 adventure-text-serializer-plain = { module = "net.kyori:adventure-text-serializer-plain", version.ref = "adventure" }
-adventure-text-serializer-legacy = { module = "net.kyori:adventure-text-serializer-legacy", version.ref = "adventure" }
 
 [bundles]
-adventure = ["adventure-api", "adventure-text-minimessage", "adventure-text-serializer-gson", "adventure-text-serializer-plain", "adventure-text-serializer-legacy"]
-configurate = ["configurate-yaml", "configurate-gson", "configurate-extra-kotlin"]
+adventure = ["adventure-api", "adventure-text-minimessage", "adventure-text-serializer-plain"]
+configurate = ["configurate-yaml", "configurate-gson"]
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
