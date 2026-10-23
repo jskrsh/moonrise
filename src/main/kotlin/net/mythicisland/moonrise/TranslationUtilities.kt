@@ -13,5 +13,4 @@ public object TranslationUtilities {
         val locale = Locale.forLanguageTag(value.replace('_', '-'))
         return if (locale.language.isEmpty()) null else locale
     }
-
 }

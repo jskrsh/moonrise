@@ -1,0 +1,37 @@
+complexity:
+  TooManyFunctions:
+    active: false
+  LongParameterList:
+    allowedFunctionParameters: 6
+    allowedConstructorParameters: 8
+    ignoreDefaultParameters: true
+  LongMethod:
+    allowedLines: 120
+    excludes: ['**/test/**']
+  CyclomaticComplexMethod:
+    ignoreSimpleWhenEntries: true
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false
+
+style:
+  MaxLineLength:
+    maxLineLength: 150
+  ReturnCount:
+    active: false
+  ForbiddenMethodCall:
+    active: true
+    methods:
+      - 'kotlin.io.print'
+      - 'kotlin.io.println'
+      - 'java.math.BigDecimal.<init>(kotlin.Double)'
+      - 'java.math.BigDecimal.<init>(kotlin.String)'
+      - 'kotlin.system.measureTimeMillis'
+      - 'kotlin.apply'
+      - 'kotlin.also'
+      - 'kotlin.let'
+      - 'kotlin.run'
+      - 'kotlin.with'
+      - 'kotlin.takeIf'
+      - 'kotlin.takeUnless'

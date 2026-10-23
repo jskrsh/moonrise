@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.jmh)
     alias(libs.plugins.kraken)
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.spotless)
+    alias(libs.plugins.detekt)
 }
 
 group = "net.mythicisland"
@@ -40,6 +42,24 @@ kotlin {
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(25))
+}
+
+spotless {
+    kotlin {
+        target("src/**/*.kt")
+        ktlint(libs.versions.ktlint.get())
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint(libs.versions.ktlint.get())
+    }
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    parallel = true
+    config.setFrom(rootProject.file(".detekt/detekt.yml"))
+    source.setFrom("src/main/kotlin", "src/test/kotlin", "src/jmh/kotlin")
 }
 
 maven {

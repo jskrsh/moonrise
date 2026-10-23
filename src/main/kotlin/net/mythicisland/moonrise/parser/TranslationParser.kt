@@ -36,7 +36,8 @@ internal class TranslationParser(private val miniMessage: MiniMessage, private v
         val hover = compileHover(component)
         val click = dynamicClick(component)
         val insertion = dynamicInsertion(component)
-        if (hover == null && click == null && insertion == null && children.all { it is MessageNode.Static }) {
+        val hasEvents = hover != null || click != null || insertion != null
+        if (!hasEvents && children.all { it is MessageNode.Static }) {
             return MessageNode.Static(component)
         }
         return MessageNode.Dynamic(component.children(emptyList()), children, hover, click, insertion)

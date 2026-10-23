@@ -8,6 +8,11 @@ slf4j = "2.0.20"
 # Plugins
 jmh = "0.7.3"
 kraken = "1.1.1"
+spotless = "8.10.4"
+detekt = "2.0.0-alpha.6"
+
+# Formatting
+ktlint = "1.8.0"
 
 # Adventure
 adventure = "5.2.0"
@@ -43,3 +48,5 @@ configurate = ["configurate-yaml", "configurate-gson"]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 jmh = { id = "me.champeau.jmh", version.ref = "jmh" }
 kraken = { id = "dev.xxjanisxx.kraken", version.ref = "kraken" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+detekt = { id = "dev.detekt", version.ref = "detekt" }
