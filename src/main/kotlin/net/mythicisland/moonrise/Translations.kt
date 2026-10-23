@@ -91,7 +91,7 @@ public class Translations private constructor(public val options: TranslationLoa
 
     public class Builder internal constructor(private val options: TranslationLoaderOptions) {
 
-        /** Adds a [TranslationLoader]. */
+        /** Adds a [TranslationLoader]. Keys of later loaders override keys of earlier loaders. */
         public fun loader(loader: TranslationLoader): Builder = Builder(options.copy(loaders = options.loaders + loader))
 
         /** Sets the locale that is used when no translation for the requested locale exists. */
